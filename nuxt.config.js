@@ -1,5 +1,7 @@
 const pkg = require('./package')
 
+require('dotenv').config()
+
 module.exports = {
   mode: 'universal',
 
@@ -43,7 +45,17 @@ module.exports = {
   ** Axios module configuration
   */
   axios: {
-    // See https://github.com/nuxt-community/axios-module#options
+    proxy: true
+  },
+
+  proxy: {
+    '/api': {
+      target: process.env.API_URL,
+      pathRewrite: {
+        '^/api': ''
+      },
+      changeOrigin: true
+    }
   },
 
   /*

@@ -1,68 +1,127 @@
 <template>
-  <section class="container">
-    <div>
-      <logo />
-      <h1 class="title">
-        map
-      </h1>
-      <h2 class="subtitle">
-        Mapping companies with cookies
-      </h2>
-      <div class="links">
-        <a
-          href="https://nuxtjs.org/"
-          target="_blank"
-          class="button--green"
-        >Documentation</a>
-        <a
-          href="https://github.com/nuxt/nuxt.js"
-          target="_blank"
-          class="button--grey"
-        >GitHub</a>
-      </div>
-    </div>
-  </section>
+  <svg id="map" :viewBox="`0, 0, ${width}, ${height}`">
+    <g class="world">
+      <path v-for="(country, index) in world.features" :key="country.properties.sovereignt + index" :d="path(country)" class="country" :class="country.properties.sovereignt" />
+    </g>
+    <g class="locations">
+      <g v-for="(company, index) in companies" :key="company.domainName + index">
+        <circle
+          v-if="company.location"
+          :cx="projection([company.location.longitude, company.location.latitude])[0]"
+          :cy="projection([company.location.longitude, company.location.latitude])[1]"
+          :r="1"
+          class="marker"
+          :class="company.domainName"
+        />
+        <circle
+          v-else
+          :cx="index * 2"
+          :cy="height - 5"
+          :r="1"
+          class="marker"
+          :class="company.domainName"
+        />
+      </g>
+    </g>
+  </svg>
 </template>
 
 <script>
-import Logo from '~/components/Logo.vue'
+// import { mapState, mapActions } from 'vuex'
+const d3 = {
+  ...require('d3-geo'),
+  ...require('d3-selection'),
+  ...require('d3-zoom')
+}
 
 export default {
-  components: {
-    Logo
+  data() {
+    return {
+      width: 961,
+      height: 430
+    }
+  },
+  computed: {
+    // locations() {
+    //   const raw = require('~/assets/db.json')
+    //   return raw.filter(
+    //     item =>
+    //       (item.registrantStreet &&
+    //         item.registrantStateProvince &&
+    //         item.registrantCity) ||
+    //       (item.adminStreet && item.adminStateProvince && item.adminCity)
+    //   )
+    //   // .map(item => {
+    //   //   let location = null
+    //   //   if (item.registrantStreet) {
+    //   //     location = `${item.registrantStreet}, ${item.registrantCity}, ${item.registrantStateProvince}` // eslint-disable-line prettier/prettier
+    //   //   } else {
+    //   //     location = `${item.adminStreet}, ${item.adminCity}, ${item.adminStateProvince}` // eslint-disable-line prettier/prettier
+    //   //   }
+    //   //   return location
+    //   // })
+    // },
+    companies() {
+      // return require('~/assets/cookies.json')
+      return require('~/assets/domains.json')
+    },
+    locations() {
+      return this.svg
+        .select('g.locations')
+        .selectAll('.location')
+        .data(this.companies)
+    },
+    path() {
+      return d3.geoPath().projection(this.projection)
+    },
+    projection() {
+      return d3.geoMercator()
+    },
+    svg() {
+      return d3.select('#map').call(this.zoom)
+    },
+    world() {
+      return require('~/assets/custom.geo.json')
+    },
+    zoom() {
+      return d3.zoom().on('zoom', function() {
+        this.svg.attr('transform', () => {
+          return d3.event.transform
+        })
+      })
+    }
+    // ...mapState(['companies'])
+  },
+  mounted() {
+    // this.width = window.innerWidth - 1
+    // this.height = window.innerHeight - 5
+    // await this.setCompanies()
+  },
+  methods: {
+    // ...mapActions(['setCompanies'])
+    async getLocations() {
+      const { data } = await this.$axios.$post('/api/locations', {
+        location: this.companies[0],
+        options: {
+          thumbMaps: false
+        }
+      })
+      this.geoLocations = data
+    }
   }
 }
 </script>
 
 <style>
-.container {
-  margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+#map {
+  width: 100vw;
 }
-
-.title {
-  font-family: 'Quicksand', 'Source Sans Pro', -apple-system, BlinkMacSystemFont,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  display: block;
-  font-weight: 300;
-  font-size: 100px;
-  color: #35495e;
-  letter-spacing: 1px;
+.country {
+  fill: #faad61b3;
+  stroke: white;
+  stroke-width: 0.25;
 }
-
-.subtitle {
-  font-weight: 300;
-  font-size: 42px;
-  color: #526488;
-  word-spacing: 5px;
-  padding-bottom: 15px;
-}
-
-.links {
-  padding-top: 15px;
+.marker {
+  fill: #eb5324;
 }
 </style>

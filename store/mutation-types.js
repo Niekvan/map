@@ -1,0 +1,2 @@
+export const SET_COMPANIES = 'SET COMPANIES'
+export const SET_PENDING = 'SET_PENDING'
