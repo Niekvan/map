@@ -5,51 +5,36 @@
 </template>
 
 <style>
-html {
-  font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 16px;
-  word-spacing: 1px;
-  -ms-text-size-adjust: 100%;
-  -webkit-text-size-adjust: 100%;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-font-smoothing: antialiased;
-  box-sizing: border-box;
-}
+:root {
+  --green-dark: #599959;
+  --green-darker: #76cc76;
+  --green: #94ff94;
+  --green-lighter: #a9ffa9;
+  --green-light: #bfffbf;
 
-*,
-*:before,
-*:after {
-  box-sizing: border-box;
-  margin: 0;
-}
+  --blue-dark: #071230;
+  --blue-darker: #394159;
+  --blue: #6a7183;
+  --blue-lighter: #9ca0ac;
+  --blue-light: #cdd0d6;
 
-.button--green {
-  display: inline-block;
-  border-radius: 4px;
-  border: 1px solid #3b8070;
-  color: #3b8070;
-  text-decoration: none;
-  padding: 10px 30px;
-}
+  --yellow-dark: #7d710f;
+  --yellow-darker: #a79714;
+  --yellow: #d1bd19;
+  --yellow-lighter: #daca47;
+  --yellow-light: #e3d775;
 
-.button--green:hover {
-  color: #fff;
-  background-color: #3b8070;
-}
+  --violet-dark: #130d69;
+  --violet-darker: #1e14a7;
+  --violet: #2619d1;
+  --violet-lighter: #675edf;
+  --violet-light: #a8a3ed;
 
-.button--grey {
-  display: inline-block;
-  border-radius: 4px;
-  border: 1px solid #35495e;
-  color: #35495e;
-  text-decoration: none;
-  padding: 10px 30px;
-  margin-left: 15px;
-}
-
-.button--grey:hover {
-  color: #fff;
-  background-color: #35495e;
+  --background: #f4f7f6;
+  --map-background: var(--blue-light);
+  --map-border: var(--background);
+  --marker-background: var(--violet);
+  --marker-privacy: var(--yellow);
+  --marker-empty: var(--green);
 }
 </style>
