@@ -31,10 +31,16 @@
   --violet-light: #a8a3ed;
 
   --background: #f4f7f6;
+
   --map-background: var(--blue-light);
   --map-border: var(--background);
+
   --marker-background: var(--violet);
   --marker-privacy: var(--yellow);
-  --marker-empty: var(--green);
+  --marker-empty: var(--green-dark);
+
+  --cluster-text: var(--blue-light);
+
+  --grid-lines: var(--blue-lighter);
 }
 </style>
