@@ -71,7 +71,7 @@ export default {
       width: 0,
       height: 0,
       geo: null,
-      gridRange: 30,
+      gridRange: 40,
       styles: {
         fontSize: '5px'
       }
@@ -112,13 +112,17 @@ export default {
             .replace(reg, '')
           return { ...company, data, country }
         })
-        .map(item => {
+        .map((item, index) => {
           if (item.location) {
             const coordinates = this.projection([
               item.location.geometry.lng,
               item.location.geometry.lat
             ])
-            return { ...item, x: coordinates[0], y: coordinates[1] }
+            return {
+              ...item,
+              x: coordinates[0] + 0.001 * index,
+              y: coordinates[1]
+            }
           }
           return item
         })
