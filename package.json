@@ -20,7 +20,9 @@
     "cross-env": "^5.2.0",
     "d3": "^5.9.1",
     "node-geocoder": "^3.22.0",
-    "nuxt": "^2.4.0"
+    "node-sass": "^4.11.0",
+    "nuxt": "^2.4.0",
+    "sass-loader": "^7.1.0"
   },
   "devDependencies": {
     "nodemon": "^1.18.9",

@@ -1,5 +1,41 @@
 <template>
   <div class="container">
+    <div class="header">
+      <span class="header__bar">
+        /I Consent
+      </span>
+      <span class="header__plugin" />
+    </div>
+    <div class="sidebar">
+      <div class="sidebar__header">
+        Domains per company
+      </div>
+      <div class="sibebar__content">
+        <ul v-if="detailCluster.length" class="company-list">
+          <li v-for="item in detailCluster" :key="item.key" class="company-list__company">
+            {{ item.key }}
+            <ul v-for="domain in item.values" :key="domain.domainName" class="company-list__domain">
+              <li v-for="sub in domain.subs" :key="sub.key" class="company-list__subdomain">
+                {{ sub.key }}
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <ul v-else class="company-list">
+          <li class="company-list__company">
+            {{ activeNode.values.domainName }}
+          </li>
+          <li v-for="domain in activeNode.values.subs" :key="`${domain.key}-detail`" class="company-list__subdomain">
+            {{ domain.key }}
+          </li>
+        </ul>
+        <!-- <ul class="name-list">
+          <li v-for="name in companyNames" :key="name" class="name-list__item" @click="updateDots(name)">
+            {{ name }}
+          </li>
+        </ul> -->
+      </div>
+    </div>
     <svg id="map">
       <g class="container">
         <g class="world">
@@ -8,33 +44,16 @@
         <g class="locations">
           <g v-for="(company, index) in clusterPoints" :key="company.domainName + String(index)" :transform="`translate(${company.x}, ${company.y})`" class="item" @click="showCompany(company)">
             <circle
-              :r="clusterScale(company.items)"
+              :r="company.values ? clusterScale(company.values.length || 1) : 2"
               class="marker"
-              :class="setClasss(company)"
+              :class="setClass(company)"
             />
             <text
-              v-if="company.data.length"
+              v-if="company.values && company.values.length"
               dy="0.35em"
               :style="textSize(company)"
               class="counter"
             >{{ company.items }}</text>
-            <!-- <circle
-              v-else
-              :cx="index * 2"
-              :cy="height - 5"
-              :r="1"
-              class="marker"
-              :class="setClasss(company)"
-              @click="showCompany(company)"
-            /> -->
-            <!-- <text
-              v-if="company.location"
-              :x="projection([company.location.geometry.lng, company.location.geometry.lat])[0] + 2"
-              :y="projection([company.location.geometry.lng, company.location.geometry.lat])[1] + 1"
-              class="text"
-            >
-              {{ company.company }}
-            </text> -->
           </g>
         </g>
         <!-- <g class="grid">
@@ -71,10 +90,13 @@ export default {
       width: 0,
       height: 0,
       geo: null,
-      gridRange: 40,
+      gridRange: 25,
       styles: {
         fontSize: '5px'
-      }
+      },
+      activeNode: null,
+      activeCompany: null,
+      dots: null
     }
   },
   computed: {
@@ -85,7 +107,8 @@ export default {
           const company =
             item.registrantOrganization ||
             item.adminOrganization ||
-            item.techOrganization
+            item.techOrganization ||
+            undefined
           return {
             company,
             ...item
@@ -113,6 +136,9 @@ export default {
           return { ...company, data, country }
         })
         .map((item, index) => {
+          if (item.company === undefined) {
+            item.company = 'undefined'
+          }
           if (item.location) {
             const coordinates = this.projection([
               item.location.geometry.lng,
@@ -124,28 +150,152 @@ export default {
               y: coordinates[1]
             }
           }
-          return item
+          const coordinates = this.projection([
+            66.854435 + 0.001 * index,
+            -21.482163
+          ])
+          return {
+            ...item,
+            x: coordinates[0],
+            y: coordinates[1],
+            class: 'undefined'
+          }
         })
     },
     missing() {
       return this.companies.filter(item => !item.location)
     },
-    countryLevel() {
-      return this.companies.filter(
-        item => item.country && !item.data && item.location
-      )
-    },
-    check() {
-      return this.companies.map(item => {
-        return { x: item.x, y: item.y }
+    byCountry() {
+      const nest = d3
+        .nest()
+        .key(item => item.country.toUpperCase())
+        .entries(this.companies)
+
+      nest.forEach(item => {
+        const centerPoint = item.values.reduce((prev, current) => {
+          return {
+            x: prev.x + current.x,
+            y: prev.y + current.y
+          }
+        })
+        centerPoint.x = centerPoint.x / item.values.length
+        centerPoint.y = centerPoint.y / item.values.length
+        item.x = centerPoint.x
+        item.y = centerPoint.y
+        item.items = item.values.length || 1
       })
+
+      return nest
+    },
+    byCompany() {
+      const nest = d3
+        .nest()
+        .key(d => d.company)
+        .entries(this.companies)
+
+      return nest
+        .map(company => {
+          let items = 0
+          let x = 0
+          let y = 0
+          company.values.forEach(domain => {
+            items += domain.subs.length
+          })
+          const centerPoint = company.values.reduce((prev, current) => {
+            return {
+              x: prev.x + current.x,
+              y: prev.y + current.y
+            }
+          })
+          centerPoint.x = centerPoint.x / company.values.length
+          centerPoint.y = centerPoint.y / company.values.length
+          x = centerPoint.x
+          y = centerPoint.y
+          return {
+            ...company,
+            items,
+            x,
+            y
+          }
+        })
+        .sort((a, b) => b.items - a.items)
+    },
+    companyNames() {
+      return this.byCompany.map(item => item.key.toLowerCase()).sort()
+    },
+    detailCluster() {
+      if (this.activeNode) {
+        const nest = d3
+          .nest()
+          .key(item => item.company)
+          .entries(this.activeNode.values)
+
+        return nest
+          .map(company => {
+            let items = 0
+            company.values.forEach(domain => {
+              items += domain.subs.length
+            })
+            return {
+              ...company,
+              items
+            }
+          })
+          .sort((a, b) => b.items - a.items)
+      } else {
+        return this.byCompany
+      }
     },
     quadtree() {
       return d3
         .quadtree()
         .x(d => d.x)
         .y(d => d.y)
-        .addAll(this.companies.filter(company => company.location))
+        .addAll(this.companies)
+    },
+    dotTree() {
+      return d3
+        .quadtree()
+        .x(d => d.x)
+        .y(d => d.y)
+        .addAll(this.dots)
+    },
+    dotCluster() {
+      const clusterPoints = []
+      for (let x = 0; x < this.width; x += this.gridRange) {
+        for (let y = 0; y < this.height; y += this.gridRange) {
+          const searched = this.search(
+            this.dotTree,
+            x,
+            y,
+            x + this.gridRange,
+            y + this.gridRange
+          )
+
+          const centerPoint = searched.reduce(
+            (prev, current) => {
+              return { x: prev.x + current.x, y: prev.y + current.y }
+            },
+            { x: 0, y: 0 }
+          )
+          let items = 0
+          searched.forEach(domain => {
+            items += domain.subs.length
+          })
+          centerPoint.items = items
+          centerPoint.x = centerPoint.x / searched.length
+          centerPoint.y = centerPoint.y / searched.length
+          centerPoint.values = searched
+
+          if (centerPoint.x && centerPoint.y) {
+            if (centerPoint.values.length === 1) {
+              centerPoint.values = centerPoint.values[0]
+            }
+            clusterPoints.push(centerPoint)
+          }
+        }
+      }
+      return clusterPoints
     },
     grid() {
       const grid = []
@@ -189,12 +339,12 @@ export default {
 
           centerPoint.x = centerPoint.x / searched.length
           centerPoint.y = centerPoint.y / searched.length
-          centerPoint.data = searched
+          centerPoint.values = searched
 
           if (centerPoint.x && centerPoint.y) {
-            centerPoint.items = centerPoint.data.length
-            if (centerPoint.data.length === 1) {
-              centerPoint.data = centerPoint.data[0]
+            centerPoint.items = centerPoint.values.length
+            if (centerPoint.values.length === 1) {
+              centerPoint.values = centerPoint.values[0]
             }
             clusterPoints.push(centerPoint)
           }
@@ -208,16 +358,16 @@ export default {
         .domain([
           Math.min(
             ...this.clusterPoints.map(
-              item => (item.data.length ? item.data.length : 1)
+              item => (item.values.length ? item.values.length : 1)
             )
           ),
           Math.max(
             ...this.clusterPoints.map(
-              item => (item.data.length ? item.data.length : 1)
+              item => (item.values.length ? item.values.length : 1)
             )
           )
         ])
-        .rangeRound([1, 10])
+        .rangeRound([3, 15])
     },
     locations() {
       return this.svg
@@ -225,20 +375,14 @@ export default {
         .selectAll('.location')
         .data(this.companies)
     },
-    names() {
-      return d3
-        .nest()
-        .key(d => d.company)
-        .entries(this.companies)
-    },
     path() {
       return d3.geoPath().projection(this.projection)
     },
     projection() {
       return d3
         .geoMercator()
-        .scale((this.width / 640) * 100)
-        .translate([this.width / 2, this.height / 2])
+        .scale((this.height / 550) * 100)
+        .translate([this.width / 2.5, this.height / 1.75])
     },
     svg() {
       return d3.select('#map')
@@ -271,9 +415,12 @@ export default {
     }
     // ...mapState(['companies'])
   },
+  created() {
+    this.dots = this.companies
+  },
   mounted() {
     this.width = window.innerWidth
-    this.height = this.width / 2
+    this.height = window.innerHeight
     this.svg.call(this.zoom)
     // const data = await this.getGeo(this.companies)
     // data[data.length - 1] = data[data.length - 1].data[0]
@@ -363,13 +510,15 @@ export default {
       }
     },
     showCompany(company) {
-      console.log(company.data) //eslint-disable-line
+      console.log(company) //eslint-disable-line
+      this.activeNode = this.activeNode === company ? null : company
     },
-    setClasss(node) {
+    setClass(node) {
       return [
-        node.domainName,
-        { empty: !node.data.data && !node.data.country },
-        { privacy: node.data.country && !node.data.data }
+        node.domainName
+        // { empty: !node.values.data && !node.values.country },
+        // { privacy: node.values.country && !node.values.data },
+        // { undefined: node.key === '' }
       ]
     },
     textSize(node) {
@@ -400,23 +549,121 @@ export default {
         })
       })
       return nodes
+    },
+    updateDots(company) {
+      this.company = this.company === company ? null : company
+      if (this.company) {
+        this.dots = this.companies.filter(
+          item => item.company.toLowerCase() === company
+        )
+      } else {
+        this.dots = this.companies
+      }
     }
   }
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--blue-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--blue-dark);
+  transition: all 0.3s;
+
+  &:hover {
+    background: var(--yellow);
+  }
+}
 .container {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
+  font-family: 'bennet-text-one', serif;
   background: var(--background);
+
+  display: grid;
+  grid-template-rows: 4rem 1fr;
+  grid-template-columns: 22% 1fr;
 }
+.header {
+  grid-row: 1 / 2;
+  grid-column: 1 / -1;
+  height: 4rem;
+  display: flex;
+
+  &__bar {
+    flex-grow: 1;
+    font-size: 3em;
+    box-sizing: border-box;
+    padding-left: 0.5em;
+    padding-top: 0.1em;
+  }
+
+  &__plugin {
+    width: 4em;
+    height: 4em;
+    background: var(--violet);
+  }
+}
+
+.sidebar {
+  grid-row: 2 / -1;
+  grid-column: 1 / 2;
+  height: calc(100vh - 4rem);
+  overflow-y: auto;
+
+  &__header {
+    font-size: 2rem;
+    padding-left: 1rem;
+    padding-top: 0.5rem;
+  }
+
+  .company-list {
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+    padding: 1rem;
+
+    &__company {
+      font-weight: 700;
+    }
+
+    &__domain {
+      list-style-type: none;
+      padding: 0;
+      font-weight: normal;
+    }
+
+    &__subdomain {
+      padding-left: 1rem;
+    }
+  }
+
+  .name-list {
+    &__item {
+      list-style-type: none;
+      &:hover {
+        cursor: pointer;
+      }
+    }
+  }
+}
+
 #map {
+  grid-row: 2 / 3;
+  grid-column: 2 / 3;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 .country {
   fill: var(--map-background);
@@ -425,7 +672,10 @@ export default {
 }
 .marker {
   fill: var(--marker-background);
-  /* opacity: 0.1; */
+
+  &:hover {
+    cursor: pointer;
+  }
 }
 .empty {
   fill: var(--marker-empty);
@@ -436,8 +686,16 @@ export default {
   opacity: 1;
 }
 
-.text {
-  font-size: 0.25rem;
+.undefined {
+  fill: var(--marker-undefined);
+
+  & + .counter {
+    fill: var(--blue-dark);
+  }
+}
+
+.counter {
+  pointer-events: none;
 }
 
 .grid {

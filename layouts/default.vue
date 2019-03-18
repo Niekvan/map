@@ -5,6 +5,7 @@
 </template>
 
 <style>
+@import url('https://use.typekit.net/okb5lju.css');
 :root {
   --green-dark: #599959;
   --green-darker: #76cc76;
@@ -35,9 +36,10 @@
   --map-background: var(--blue-light);
   --map-border: var(--background);
 
-  --marker-background: var(--violet);
+  --marker-background: var(--green-dark);
   --marker-privacy: var(--yellow);
-  --marker-empty: var(--green-dark);
+  --marker-empty: var(--violet);
+  --marker-undefined: var(--yellow-light);
 
   --cluster-text: var(--blue-light);
 
