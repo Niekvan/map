@@ -39,7 +39,8 @@ module.exports = {
   modules: [
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
-    '@nuxtjs/pwa'
+    '@nuxtjs/pwa',
+    'cookie-universal-nuxt'
   ],
   /*
   ** Axios module configuration
@@ -51,10 +52,10 @@ module.exports = {
   proxy: {
     '/api': {
       target: process.env.API_URL,
-      pathRewrite: {
-        '^/api': ''
-      },
-      changeOrigin: true
+      changeOrigin: true,
+      headers: {
+        'access-token': process.env.LOCAL_API_KEY
+      }
     }
   },
 

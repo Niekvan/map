@@ -1,6 +1,8 @@
 export default () => ({
   companies: null,
   pending: false,
+  ID: null,
+  cookies: null,
   isoCountries: {
     AF: 'Afghanistan',
     AX: 'Aland Islands',

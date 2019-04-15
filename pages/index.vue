@@ -11,7 +11,7 @@
         Domains per company
       </div>
       <div class="sibebar__content">
-        <ul v-if="detailCluster.length" class="company-list">
+        <!-- <ul v-if="detailCluster.length" class="company-list">
           <li v-for="item in detailCluster" :key="item.key" class="company-list__company">
             {{ item.key }}
             <ul v-for="domain in item.values" :key="domain.domainName" class="company-list__domain">
@@ -28,12 +28,12 @@
           <li v-for="domain in activeNode.values.subs" :key="`${domain.key}-detail`" class="company-list__subdomain">
             {{ domain.key }}
           </li>
-        </ul>
-        <!-- <ul class="name-list">
+        </ul> -->
+        <ul class="name-list">
           <li v-for="name in companyNames" :key="name" class="name-list__item" @click="updateDots(name)">
             {{ name }}
           </li>
-        </ul> -->
+        </ul>
       </div>
     </div>
     <svg id="map">
@@ -42,9 +42,9 @@
           <path v-for="(country, index) in world.features" :key="country.properties.sovereignt + index" :d="path(country)" class="country" :class="country.properties.sovereignt" />
         </g>
         <g class="locations">
-          <g v-for="(company, index) in clusterPoints" :key="company.domainName + String(index)" :transform="`translate(${company.x}, ${company.y})`" class="item" @click="showCompany(company)">
+          <g v-for="(company, index) in byCountry" :key="company.domainName + String(index)" :transform="`translate(${company.x}, ${company.y})`" class="item" @click="showCompany(company)">
             <circle
-              :r="company.values ? clusterScale(company.values.length || 1) : 2"
+              :r="company.values.length ? clusterScale(company.values.length || 1) : 2"
               class="marker"
               :class="setClass(company)"
             />
@@ -73,7 +73,7 @@
 </template>
 
 <script>
-// import { mapState, mapActions } from 'vuex'
+import { mapState } from 'vuex'
 import { event as currentEvent } from 'd3-selection' //eslint-disable-line
 const d3 = {
   ...require('d3-geo'),
@@ -101,69 +101,29 @@ export default {
   },
   computed: {
     companies() {
-      // return require('~/assets/cookies.json')
-      return require('~/assets/opencage-3.json')
-        .map(item => {
-          const company =
-            item.registrantOrganization ||
-            item.adminOrganization ||
-            item.techOrganization ||
-            undefined
-          return {
-            company,
-            ...item
-          }
-        })
-        .map(company => {
-          const reg = /(.+)?((Redacted|Not Disclosed|Non-Public Data|none|00000|private data|Statury Masking Enabled|--|Registrant.+:|masked|n\/a|ATTN)(.+)?,?)|Obfuscated whois Gandi-/gi
-
-          const address =
-            company.registrantStreet || company.adminStreet || null
-          const zipCode =
-            company.registrantPostalCode || company.adminPostalCode || null
-          const city = company.registrantCity || company.adminCity || null
-          const state =
-            company.registrantStateProvince ||
-            company.adminStateProvince ||
-            null
-          const rawCountry =
-            company.registrantCountry || company.adminCountry || ''
-          const country = rawCountry.replace(reg, '')
-          const data = [address, zipCode, city, state]
-            .filter(Boolean)
-            .join(', ')
-            .replace(reg, '')
-          return { ...company, data, country }
-        })
-        .map((item, index) => {
-          if (item.company === undefined) {
-            item.company = 'undefined'
-          }
-          if (item.location) {
-            const coordinates = this.projection([
-              item.location.geometry.lng,
-              item.location.geometry.lat
-            ])
-            return {
-              ...item,
-              x: coordinates[0] + 0.001 * index,
-              y: coordinates[1]
-            }
-          }
+      return this.cookies.map((item, index) => {
+        if (item.location) {
           const coordinates = this.projection([
-            66.854435 + 0.001 * index,
-            -21.482163
+            item.location.lng,
+            item.location.lat
           ])
           return {
             ...item,
-            x: coordinates[0],
-            y: coordinates[1],
-            class: 'undefined'
+            x: coordinates[0] + 0.001 * index,
+            y: coordinates[1]
           }
-        })
-    },
-    missing() {
-      return this.companies.filter(item => !item.location)
+        }
+        const coordinates = this.projection([
+          66.854435 + 0.001 * index,
+          -21.482163
+        ])
+        return {
+          ...item,
+          x: coordinates[0],
+          y: coordinates[1],
+          class: 'undefined'
+        }
+      })
     },
     byCountry() {
       const nest = d3
@@ -195,12 +155,9 @@ export default {
 
       return nest
         .map(company => {
-          let items = 0
+          const items = company.values.length
           let x = 0
           let y = 0
-          company.values.forEach(domain => {
-            items += domain.subs.length
-          })
           const centerPoint = company.values.reduce((prev, current) => {
             return {
               x: prev.x + current.x,
@@ -234,7 +191,7 @@ export default {
           .map(company => {
             let items = 0
             company.values.forEach(domain => {
-              items += domain.subs.length
+              items += domain.length
             })
             return {
               ...company,
@@ -280,7 +237,7 @@ export default {
           )
           let items = 0
           searched.forEach(domain => {
-            items += domain.subs.length
+            items += domain.length
           })
           centerPoint.items = items
           centerPoint.x = centerPoint.x / searched.length
@@ -357,12 +314,12 @@ export default {
         .scaleSqrt()
         .domain([
           Math.min(
-            ...this.clusterPoints.map(
+            ...this.byCountry.map(
               item => (item.values.length ? item.values.length : 1)
             )
           ),
           Math.max(
-            ...this.clusterPoints.map(
+            ...this.byCountry.map(
               item => (item.values.length ? item.values.length : 1)
             )
           )
@@ -412,15 +369,13 @@ export default {
           //   currentTrans[1] + (event.offsetY - newPos[1])
           // ])
         })
-    }
-    // ...mapState(['companies'])
-  },
-  created() {
-    this.dots = this.companies
+    },
+    ...mapState(['cookies'])
   },
   mounted() {
     this.width = window.innerWidth
     this.height = window.innerHeight
+    this.dots = this.companies
     this.svg.call(this.zoom)
     // const data = await this.getGeo(this.companies)
     // data[data.length - 1] = data[data.length - 1].data[0]
