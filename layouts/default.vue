@@ -5,7 +5,10 @@
 </template>
 
 <style>
-@import url('https://use.typekit.net/okb5lju.css');
+@import url('https://use.typekit.net/syq1qju.css');
+body {
+  margin: 0;
+}
 :root {
   --green-dark: #599959;
   --green-darker: #76cc76;
@@ -31,18 +34,26 @@
   --violet-lighter: #675edf;
   --violet-light: #a8a3ed;
 
-  --background: #f4f7f6;
+  --background: #f1f2f7;
+  -grey: #efefef;
 
-  --map-background: var(--blue-light);
-  --map-border: var(--background);
+  --font-mono: ibm-plex-mono, sans-serif;
+  --font-serif: bennet-text-one, sans-serif;
 
-  --marker-background: var(--green-dark);
+  --map-background: var(--background);
+  /* --map-border: var(--blue-light); */
+  --map-border: #cfd5db;
+
+  --rect-background: var(--blue-dark);
+
+  --marker-background: var(--yellow);
   --marker-privacy: var(--yellow);
   --marker-empty: var(--violet);
   --marker-undefined: var(--yellow-light);
+  --marker-text: var(--violet);
 
   --cluster-text: var(--blue-light);
 
-  --grid-lines: var(--blue-lighter);
+  --grid-lines: var(--blue-light);
 }
 </style>

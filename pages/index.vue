@@ -39,12 +39,12 @@
     <svg id="map">
       <g class="container">
         <g class="world">
-          <path v-for="(country, index) in world.features" :key="country.properties.sovereignt + index" :d="path(country)" class="country" :class="country.properties.sovereignt" />
+          <path :d="path(worldBorders)" class="borders" />
         </g>
         <g class="locations">
-          <g v-for="(company, index) in byCountry" :key="company.domainName + String(index)" :transform="`translate(${company.x}, ${company.y})`" class="item" @click="showCompany(company)">
+          <g v-for="(company, index) in detailCluster" :key="company.domainName + String(index)" :transform="`translate(${company.x}, ${company.y})`" class="item" @click="showCompany(company)">
             <circle
-              :r="company.values.length ? clusterScale(company.values.length || 1) : 2"
+              :r="company.values ? clusterScale(company.values.length || 1) : 2"
               class="marker"
               :class="setClass(company)"
             />
@@ -56,17 +56,6 @@
             >{{ company.items }}</text>
           </g>
         </g>
-        <!-- <g class="grid">
-          <rect
-            v-for="item in rect"
-            :key="item.key"
-            :x="item.x"
-            :y="item.y"
-            :width="item.width"
-            :height="item.height"
-            :class="item.class"
-          />
-        </g> -->
       </g>
     </svg>
   </div>
@@ -75,13 +64,15 @@
 <script>
 import { mapState } from 'vuex'
 import { event as currentEvent } from 'd3-selection' //eslint-disable-line
+const topojson = require('topojson')
 const d3 = {
   ...require('d3-geo'),
   ...require('d3-selection'),
   ...require('d3-zoom'),
   ...require('d3-collection'),
   ...require('d3-quadtree'),
-  ...require('d3-scale')
+  ...require('d3-scale'),
+  ...require('d3-geo-projection')
 }
 
 export default {
@@ -90,7 +81,7 @@ export default {
       width: 0,
       height: 0,
       geo: null,
-      gridRange: 25,
+      gridRange: 40,
       styles: {
         fontSize: '5px'
       },
@@ -235,10 +226,7 @@ export default {
             },
             { x: 0, y: 0 }
           )
-          let items = 0
-          searched.forEach(domain => {
-            items += domain.length
-          })
+          const items = searched.length
           centerPoint.items = items
           centerPoint.x = centerPoint.x / searched.length
           centerPoint.y = centerPoint.y / searched.length
@@ -337,9 +325,9 @@ export default {
     },
     projection() {
       return d3
-        .geoMercator()
-        .scale((this.height / 550) * 100)
-        .translate([this.width / 2.5, this.height / 1.75])
+        .geoNaturalEarth1()
+        .scale((this.height / 325) * 100)
+        .translate([this.width / 2.75, this.height / 2])
     },
     svg() {
       return d3.select('#map')
@@ -347,8 +335,15 @@ export default {
     container() {
       return this.svg.select('g.container')
     },
-    world() {
-      return require('~/assets/custom.geo.json')
+    worldData() {
+      const world = require('~/assets/world.json')
+      return {
+        world,
+        countries: world.objects.countries
+      }
+    },
+    worldBorders() {
+      return topojson.mesh(this.worldData.world, this.worldData.countries)
     },
     zoom() {
       return d3
@@ -358,16 +353,6 @@ export default {
         .extent([[0, 0], [this.width, this.height]])
         .on('zoom', () => {
           this.container.attr('transform', currentEvent.transform)
-          // const currentScale = this.projection.scale()
-          // const newScale = currentScale - 2 * event.deltaY
-          // const currentTrans = this.projection.translate()
-          // const coords = this.projection.invert([event.offsetX, event.offsetY])
-          // this.projection.scale(newScale)
-          // const newPos = this.projection(coords)
-          // this.projection.translate([
-          //   currentTrans[0] + (event.offsetX - newPos[0]),
-          //   currentTrans[1] + (event.offsetY - newPos[1])
-          // ])
         })
     },
     ...mapState(['cookies'])
@@ -377,93 +362,8 @@ export default {
     this.height = window.innerHeight
     this.dots = this.companies
     this.svg.call(this.zoom)
-    // const data = await this.getGeo(this.companies)
-    // data[data.length - 1] = data[data.length - 1].data[0]
-    // this.geo = data
-    // console.log(this.geo) //eslint-disable-line
-    // await this.setCompanies()
   },
   methods: {
-    // ...mapActions(['setCompanies'])
-    async getLocations() {
-      const { data } = await this.$axios.$post('/api/locations', {
-        location: this.companies[0],
-        options: {
-          thumbMaps: false
-        }
-      })
-      this.geoLocations = data
-    },
-    async getUrl(urlData, index, length) {
-      if (urlData.data && urlData.data.length) {
-        const url = `https://api.opencagedata.com/geocode/v1/json?key=${encodeURIComponent(
-          'd82a04c434f54ef5b684025655c7a026'
-        )}&q=${encodeURIComponent(
-          urlData.data
-        )}&countrycode=${encodeURIComponent(
-          urlData.country
-        )}&language=en&pretty=1&no_annotations=1&no_record=1&limit=1`
-        const { results: data } = await this.$axios.$get(url)
-        if (!data[0]) {
-          const q = this.$store.getters.getCountry(urlData.country)
-          if (q) {
-            const newUrl = `https://api.opencagedata.com/geocode/v1/json?key=${encodeURIComponent(
-              'd82a04c434f54ef5b684025655c7a026'
-            )}&q=${encodeURIComponent(q)}&countrycode=${encodeURIComponent(
-              urlData.country
-            )}&language=en&pretty=1&no_annotations=1&no_record=1&limit=1`
-            const { results: newData } = await this.$axios.$get(newUrl)
-            data[0] = newData[0]
-          }
-        }
-        return {
-          data: [
-            {
-              ...urlData,
-              location: data[0]
-            }
-          ],
-          nextPage: length > index ? index + 1 : null
-        }
-      } else if (urlData.country && urlData.country.length) {
-        const q = this.$store.getters.getCountry(urlData.country)
-        const url = `https://api.opencagedata.com/geocode/v1/json?key=${encodeURIComponent(
-          'd82a04c434f54ef5b684025655c7a026'
-        )}&q=${encodeURIComponent(q)}&countrycode=${encodeURIComponent(
-          urlData.country
-        )}&language=en&pretty=1&no_annotations=1&no_record=1&limit=1`
-
-        const { results: data } = await this.$axios.$get(url)
-        return {
-          data: [
-            {
-              ...urlData,
-              location: data[0]
-            }
-          ],
-          nextPage: length > index ? index + 1 : null
-        }
-      }
-      return {
-        data: [
-          {
-            ...urlData,
-            location: undefined
-          }
-        ],
-        nextPage: length > index ? index + 1 : null
-      }
-    },
-    async getGeo(data, index = 0) {
-      const length = data.length - 1
-      console.log(index, (index / length * 100).toFixed(2) + '%') //eslint-disable-line
-      const geo = await this.getUrl(data[index], index, length)
-      if (geo.nextPage) {
-        return geo.data.concat(await this.getGeo(data, geo.nextPage))
-      } else {
-        return geo
-      }
-    },
     showCompany(company) {
       console.log(company) //eslint-disable-line
       this.activeNode = this.activeNode === company ? null : company
@@ -522,33 +422,35 @@ export default {
 <style lang="scss" scoped>
 ::-webkit-scrollbar {
   width: 12px;
-}
 
-::-webkit-scrollbar-track {
-  background: var(--blue-light);
-}
+  &-track {
+    background: var(--blue-light);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--blue-dark);
-  transition: all 0.3s;
+  &-thumb {
+    background: var(--blue-dark);
+    transition: all 0.3s;
 
-  &:hover {
-    background: var(--yellow);
+    &:hover {
+      background: var(--yellow);
+    }
   }
 }
+
 .container {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
-  font-family: 'bennet-text-one', serif;
+  font-family: var(--font-serif);
   background: var(--background);
 
   display: grid;
   grid-template-rows: 4rem 1fr;
   grid-template-columns: 22% 1fr;
 }
+
 .header {
   grid-row: 1 / 2;
   grid-column: 1 / -1;
@@ -604,6 +506,7 @@ export default {
   }
 
   .name-list {
+    font-family: var(--font-mono);
     &__item {
       list-style-type: none;
       &:hover {
@@ -619,46 +522,40 @@ export default {
   width: 100%;
   height: 100%;
   position: relative;
-}
-.country {
-  fill: var(--map-background);
-  stroke: var(--map-border);
-  stroke-width: 0.25;
-}
-.marker {
-  fill: var(--marker-background);
 
-  &:hover {
-    cursor: pointer;
+  .borders {
+    fill: var(--map-background);
+    stroke: var(--map-border);
+    // stroke-width: 0.75;
   }
-}
-.empty {
-  fill: var(--marker-empty);
-  opacity: 1;
-}
-.privacy {
-  fill: var(--marker-privacy);
-  opacity: 1;
-}
+  // .marker {
+  //   fill: var(--marker-background);
 
-.undefined {
-  fill: var(--marker-undefined);
+  //   &:hover {
+  //     cursor: pointer;
+  //   }
+  // }
+  // .empty {
+  //   fill: var(--marker-empty);
+  //   opacity: 1;
+  // }
+  // .privacy {
+  //   fill: var(--marker-privacy);
+  //   opacity: 1;
+  // }
 
-  & + .counter {
-    fill: var(--blue-dark);
-  }
-}
+  // .undefined {
+  //   fill: var(--marker-undefined);
 
-.counter {
-  pointer-events: none;
-}
+  //   & + .counter {
+  //     fill: var(--blue-dark);
+  //   }
+  // }
 
-.grid {
-  fill: none;
-  stroke: var(--grid-lines);
-}
-.counter {
-  text-anchor: middle;
-  fill: var(--cluster-text);
+  // .counter {
+  //   pointer-events: none;
+  //   text-anchor: middle;
+  //   fill: var(--marker-text);
+  // }
 }
 </style>

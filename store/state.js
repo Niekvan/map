@@ -1,5 +1,4 @@
 export default () => ({
-  companies: null,
   pending: false,
   ID: null,
   cookies: null,
