@@ -1,22 +1,5 @@
-# map
+# Geographical experiment cookie domain owners (/map)
+An experiment for my desertation at the master Information Design the Design Academy Eindhoven. Using a self made database, it maps the location of the registered owners that have placed 3rd party cookies (cross-domain) on my device.
 
-> Mapping companies with cookies
-
-## Build Setup
-
-``` bash
-# install dependencies
-$ npm install
-
-# serve with hot reload at localhost:3000
-$ npm run dev
-
-# build for production and launch server
-$ npm run build
-$ npm start
-
-# generate static project
-$ npm run generate
-```
-
-For detailed explanation on how things work, checkout [Nuxt.js docs](https://nuxtjs.org).
+# Spacial experiment creaing layers between cookies and their true origin (/stack)
+A stack of planes in a 3d visual, as an attempt to see the ratio between the amount of cookies and the registered owners of domains that have placed these cookies.
