@@ -24,7 +24,7 @@
     "d3": "^5.9.2",
     "d3-geo-projection": "^2.6.0",
     "node-geocoder": "^3.22.0",
-    "node-sass": "^4.11.0",
+    "node-sass": "^4.13.1",
     "nuxt": "^2.6.2",
     "sass-loader": "^7.1.0",
     "three": "^0.103.0",
